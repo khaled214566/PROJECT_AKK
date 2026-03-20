@@ -81,15 +81,15 @@ def send_email_with_images(image_paths):
         return False
 
 def prepare_and_send_three_images(track_id, current_frame, current_ts, wait_time=1.0):
-    base = os.path.join("intruder_captures", f"intruder_{track_id}_{int(current_ts)}")
+    base = f"intruder_{track_id}_{int(current_ts)}"
     path_during = f"{base}.jpg"
     path_before = f"{base}_before.jpg"
     path_after = f"{base}_after.jpg"
 
     save_frame_to_path(current_frame, path_during)
 
-    # Before frame (~1.5 second before)
-    target_before_ts = current_ts - 1.5
+    # Before frame (~1 second before)
+    target_before_ts = current_ts - 1.0
     found = _find_closest_frame(target_before_ts)
     if found:
         _, before_frame = found
@@ -100,7 +100,7 @@ def prepare_and_send_three_images(track_id, current_frame, current_ts, wait_time
     # Thread for after frame and email
     def after_and_send():
         time.sleep(wait_time)
-        target_after_ts = current_ts + 2
+        target_after_ts = current_ts + 1.0
         found_after = _find_closest_frame(target_after_ts)
         if found_after:
             _, after_frame = found_after
@@ -127,50 +127,44 @@ if not cap.isOpened():
     exit()
 
 # ---------------------- Wall Selection ----------------------
-# ---------------------- Wall Selection ----------------------
 ret, frame = cap.read()
 if not ret:
     print("Error: Could not read first frame")
     exit()
 
-if os.path.exists(WALL_FILE):
-    with open(WALL_FILE, "r") as f:
-        points = json.load(f)
-    print("Loaded saved wall points:", points)
-else:
-    points = []
+points = []
 
-    def get_coordinates(event, x, y, flags, param):
-        global points
-        if event == cv2.EVENT_LBUTTONDOWN and len(points) < 4:
-            points.append((x, y))
-            print(f"Point {len(points)} selected: X={x}, Y={y}")
+def get_coordinates(event, x, y, flags, param):
+    global points
+    if event == cv2.EVENT_LBUTTONDOWN and len(points) < 4:
+        points.append((x, y))
+        print(f"Point {len(points)} selected: X={x}, Y={y}")
 
-    cv2.namedWindow("Select Wall")
-    cv2.setMouseCallback("Select Wall", get_coordinates)
+cv2.namedWindow("Select Wall")
+cv2.setMouseCallback("Select Wall", get_coordinates)
 
-    while True:
-        frame_copy = frame.copy()
-        for p in points:
-            cv2.circle(frame_copy, p, 5, (0,0,255), -1)
-        if len(points) > 1:
-            cv2.polylines(frame_copy, [np.array(points, np.int32)], len(points) == 4, (255,0,0), 2)
+while True:
+    frame_copy = frame.copy()
+    for p in points:
+        cv2.circle(frame_copy, p, 5, (0,0,255), -1)
+    if len(points) > 1:
+        cv2.polylines(frame_copy, [np.array(points, np.int32)], len(points) == 4, (255,0,0), 2)
 
-        cv2.imshow("Select Wall", frame_copy)
-        key = cv2.waitKey(1) & 0xFF
-        if key == 13 and len(points) == 4:
-            with open(WALL_FILE, "w") as f:
-                json.dump(points, f)
-            print("Wall points saved:", points)
-            break
-        elif key == 27:
-            cap.release()
-            cv2.destroyAllWindows()
-            exit()
+    cv2.imshow("Select Wall", frame_copy)
+    key = cv2.waitKey(1) & 0xFF
+    if key == 13 and len(points) == 4:
+        with open(WALL_FILE, "w") as f:
+            json.dump(points, f)
+        print("Wall points saved:", points)
+        break
+    elif key == 27:
+        cap.release()
+        cv2.destroyAllWindows()
+        exit()
 
-    cv2.destroyWindow("Select Wall")
-
+cv2.destroyWindow("Select Wall")
 wall_polygon = np.array(points, np.int32).reshape((-1,1,2))
+
 # ---------------------- Detection Loop ----------------------
 while True:
     ret, frame = cap.read()

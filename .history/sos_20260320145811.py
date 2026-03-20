@@ -88,8 +88,8 @@ def prepare_and_send_three_images(track_id, current_frame, current_ts, wait_time
 
     save_frame_to_path(current_frame, path_during)
 
-    # Before frame (~1.5 second before)
-    target_before_ts = current_ts - 1.5
+    # Before frame (~1 second before)
+    target_before_ts = current_ts - 1.0
     found = _find_closest_frame(target_before_ts)
     if found:
         _, before_frame = found
@@ -100,7 +100,7 @@ def prepare_and_send_three_images(track_id, current_frame, current_ts, wait_time
     # Thread for after frame and email
     def after_and_send():
         time.sleep(wait_time)
-        target_after_ts = current_ts + 2
+        target_after_ts = current_ts + 1.0
         found_after = _find_closest_frame(target_after_ts)
         if found_after:
             _, after_frame = found_after
